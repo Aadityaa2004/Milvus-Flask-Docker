@@ -13,7 +13,7 @@ services:
       - ${DOCKER_VOLUME_DIRECTORY:-.}/volumes/etcd:/etcd
     command: etcd -advertise-client-urls=http://etcd:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
     networks:
-      - milvus-network
+      - milvus
     healthcheck:
       test: ["CMD", "etcdctl", "endpoint", "health"]
       interval: 30s
@@ -35,50 +35,46 @@ services:
       timeout: 20s
       retries: 3
     networks:
-      - milvus-network
+      - milvus
 
-  milvus:
+  standalone:
     container_name: milvus-standalone
     image: milvusdb/milvus:v2.3.3
     command: ["milvus", "run", "standalone"]
     environment:
       - ETCD_ENDPOINTS=etcd:2379
       - MINIO_ADDRESS=minio:9000
-      - MINIO_ACCESS_KEY=minioadmin
-      - MINIO_SECRET_KEY=minioadmin
     volumes:
       - ${DOCKER_VOLUME_DIRECTORY:-.}/volumes/milvus:/var/lib/milvus
     ports:
       - "19530:19530"
       - "9091:9091"
     depends_on:
-      etcd:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
+      - etcd
+      - minio
     networks:
-      - milvus-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9091/api/v1/health"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
+      - milvus
 
   flask-app:
-    build: .
+    container_name: milvus-flask
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "5001:5000"
+    volumes:
+      - ./data:/app/data  # This mounts your local data directory to /app/data in the container
     environment:
-      - MILVUS_HOST=milvus
+      - FLASK_ENV=development
+      - MILVUS_HOST=standalone
       - MILVUS_PORT=19530
-      - MINIO_ACCESS_KEY=minioadmin
-      - MINIO_SECRET_KEY=minioadmin
     depends_on:
-      milvus:
-        condition: service_healthy
+      - standalone
     networks:
-      - milvus-network
+      - milvus
 
 networks:
-  milvus-network:
+  milvus:
+    name: milvus
     driver: bridge
+
