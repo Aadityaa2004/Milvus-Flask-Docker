@@ -1,0 +1,7 @@
+# requirements.txt
+flask==2.3.3
+pymilvus==2.3.3
+pandas==2.1.1
+numpy==1.24.3
+sentence-transformers==2.2.2
+python-dotenv==1.0.0
